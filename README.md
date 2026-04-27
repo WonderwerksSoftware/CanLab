@@ -82,19 +82,80 @@ It combines **Claude AI and Groq LLaMA** with **7 purpose-built machine learning
 
 ## Screenshots and Interface
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│  CanLab  File  Tools  View                                          [●] BUS: connected │
-├──────────┬──────────────────────────────────────────────────────────┬───────────────┤
-│ ID PANEL │  FRAMES  SIGNALS  PLOT  AI ENGINE★  DBC BUILDER  CODE GEN │  INSPECTOR   │
-│          │  INTELLIGENCE  INJECTION  DIAGNOSTICS  DASHBOARD         │               │
-│  0x018   │  AUTO-RE★  TIMELINE★  OBD-II★  ML INTEL★               │  0x018        │
-│  0x02C   │                                                           │  Freq: 100Hz  │
-│  0x050   │   [ Analysis workspace ]                                  │  [Send to AI] │
-│  0x0A6   │                                                           │               │
-│  0x251   │                                                           │               │
-└──────────┴──────────────────────────────────────────────────────────┴───────────────┘
-```
+### Main Window — FRAMES Tab
+Loaded with Hyundai Kona sample drive data. The left panel shows the CAN ID list with frequency and frame count. The center table shows every raw frame with byte-level delta highlighting.
+
+![CanLab FRAMES tab](docs/screenshots/00_main_overview.png)
+
+### FRAMES Tab — Raw Frame View
+Every frame shown with TIMESTAMP, ID, BUS, DLC, and all 8 data bytes. Changed bytes are highlighted green. Delta column shows the per-frame byte change rate.
+
+![CanLab Frames tab with sample data](docs/screenshots/01_frames.png)
+
+### SIGNALS Tab — DBC-Decoded Signals
+Live signal values decoded from the loaded DBC definition. Shows signal name, raw value, physical value, unit, and min/max bounds.
+
+![CanLab Signals tab](docs/screenshots/02_signals.png)
+
+### PLOT Tab — Multi-Signal Time Series
+Matplotlib plot with multi-ID, multi-byte traces. Mouse-wheel zoom, right-click context menu, and live update while data streams.
+
+![CanLab Plot tab](docs/screenshots/03_plot.png)
+
+### AI ENGINE Tab — Streaming AI Analysis
+Send any CAN ID to Groq LLaMA or Claude AI for reverse-engineering analysis. The ML Context Supercharger injects byte roles, checksum findings, and similar IDs into every prompt automatically.
+
+![CanLab AI Engine tab](docs/screenshots/04_ai_engine.png)
+
+### DBC BUILDER Tab — Signal Definition Editor
+Build and edit CAN signal definitions visually. Export to DBC, openpilot DBC, Vector CANdb++, AUTOSAR ARXML, and Wireshark Lua dissector.
+
+![CanLab DBC Builder tab](docs/screenshots/05_dbc_builder.png)
+
+### CODE GEN Tab — Python and C Code Generator
+Auto-generate production-ready Python or C parsing code from your DBC signal definitions.
+
+![CanLab Code Gen tab](docs/screenshots/06_code_gen.png)
+
+### INTELLIGENCE Tab — Cross-ID Correlation and Embedding Search
+Find related signals across different CAN IDs using Pearson correlation and embedding-based cosine similarity search.
+
+![CanLab Intelligence tab](docs/screenshots/07_intelligence.png)
+
+### INJECTION Tab — Frame Injection, Replay, and Fuzzer
+Send raw frames, replay captured logs with speed control and scrubber, fuzz signals across ID ranges, and set trigger rules.
+
+![CanLab Injection tab](docs/screenshots/08_injection.png)
+
+### DIAGNOSTICS Tab — UDS and OBD-II Scanner
+Full UDS service discovery, ISO-TP session management, J1939 PGN decoder, and OBD-II Mode 01 PID scanner.
+
+![CanLab Diagnostics tab](docs/screenshots/09_diagnostics.png)
+
+### DASHBOARD Tab — Live Gauge Dials
+Animated half-arc gauges for speed, RPM, and any signal decoded from the DBC. Updates at the CAN frame rate.
+
+![CanLab Dashboard tab](docs/screenshots/10_dashboard.png)
+
+### AUTO-RE Tab — Automatic Counter and Checksum Detection
+One-click detection of rolling counter bytes and checksum bytes across all loaded IDs. Tests 9 algorithms with confidence scoring.
+
+![CanLab Auto-RE tab](docs/screenshots/11_auto_re.png)
+
+### TIMELINE Tab — Multi-ID Event Timeline
+Scrubable timeline with per-ID rows showing frame density, signal change events, and user annotations.
+
+![CanLab Timeline tab](docs/screenshots/12_timeline.png)
+
+### OBD-II Tab — Live PID Gauge Dashboard
+26-PID live gauge grid. Auto-discovers supported PIDs via Mode 01 PID 0x00. Real-time gauge update with configurable polling rate.
+
+![CanLab OBD-II tab](docs/screenshots/13_obd_ii.png)
+
+### ML INTEL Tab — Machine Learning Signal Intelligence
+Signal embedding search, byte role classification, cross-ID correlation heatmap, anomaly detection, and change-point detection — all offline, no API required.
+
+![CanLab ML Intel tab](docs/screenshots/14_ml_intel.png)
 
 ---
 
