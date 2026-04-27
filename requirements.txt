@@ -1,0 +1,10 @@
+PyQt6>=6.6.0
+pyqtgraph>=0.13.0
+python-can>=4.3.0
+cantools>=39.0.0
+anthropic>=0.25.0
+pandas>=2.0.0
+numpy>=1.24.0
+requests>=2.31.0
+keyring>=24.0.0
+scipy>=1.11.0
