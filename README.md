@@ -57,7 +57,7 @@ Specifically:
 
 | Platform | File | Size |
 |---|---|---|
-| Linux x86_64 | [CanLab-1.2.0-linux-x86_64.tar.gz](https://github.com/Sherin-SEF-AI/CanLab/releases/download/v1.2.0/CanLab-1.2.0-linux-x86_64.tar.gz) | ~190 MB |
+| Linux x86_64 | [CanLab-1.2.0-linux-x86_64.tar.gz](https://github.com/Sherin-SEF-AI/CanLab/releases/download/v1.2.0/CanLab-1.2.0-linux-x86_64.tar.gz) | 200 MB |
 
 ```bash
 tar -xzf CanLab-1.2.0-linux-x86_64.tar.gz
