@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QPushButton, QFileDialog, QLabel,
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
 from theme import COLORS, mono_font
 from core.state import get_state
 
@@ -23,6 +22,7 @@ class PlotTab(QWidget):
         super().__init__(parent)
         self._state        = get_state()
         self._color_idx    = 0
+        # key -> (PlotItem, DataItem, color, label)
         self._plot_items: dict = {}
         self._live_enabled = False
         self._build_ui()
@@ -95,31 +95,15 @@ class PlotTab(QWidget):
         tb.addWidget(btn_shot)
         right_lay.addWidget(toolbar)
 
-        self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setBackground(COLORS["bg"])
-        self.plot_widget.showGrid(x=True, y=True, alpha=0.15)
-        self.plot_widget.addLegend(offset=(10, 10))
-        self.plot_widget.setLabel("bottom", "Time (s)",
-                                  color=COLORS["dim"], size="8pt")
-        self.plot_widget.setLabel("left", "Value",
-                                  color=COLORS["dim"], size="8pt")
-        self.plot_widget.getAxis("bottom").setTextPen(pg.mkPen(color=COLORS["dim"]))
-        self.plot_widget.getAxis("left").setTextPen(pg.mkPen(color=COLORS["dim"]))
-        self.plot_widget.scene().sigMouseMoved.connect(self._on_mouse_moved)
+        self.glw = pg.GraphicsLayoutWidget()
+        self.glw.setBackground(COLORS["bg"])
+        right_lay.addWidget(self.glw)
 
-        # Crosshair
-        self._vline = pg.InfiniteLine(angle=90, movable=False,
-                                       pen=pg.mkPen(color=COLORS["dim"], width=1, style=Qt.PenStyle.DotLine))
-        self._hline = pg.InfiniteLine(angle=0, movable=False,
-                                       pen=pg.mkPen(color=COLORS["dim"], width=1, style=Qt.PenStyle.DotLine))
-        self.plot_widget.addItem(self._vline, ignoreBounds=True)
-        self.plot_widget.addItem(self._hline, ignoreBounds=True)
-
-        right_lay.addWidget(self.plot_widget)
         splitter.addWidget(right)
         splitter.setSizes([180, 820])
-
         lay.addWidget(splitter)
+
+    # ── Tree ──────────────────────────────────────────────────────────────────
 
     def _refresh_tree(self):
         df = self._state.frames_df
@@ -141,9 +125,8 @@ class PlotTab(QWidget):
                 child.setCheckState(0, Qt.CheckState.Unchecked)
                 child.setFont(0, mono_font())
                 parent.addChild(child)
-            # DBC signals
             dbc_sigs = [s for s in self._state.dbc_signals
-                        if s.get("message_id","").upper() == can_id.upper()]
+                        if s.get("message_id", "").upper() == can_id.upper()]
             for sig in dbc_sigs:
                 sname = sig.get("signal_name", "?")
                 child = QTreeWidgetItem([f"[DBC] {sname}"])
@@ -165,6 +148,17 @@ class PlotTab(QWidget):
         else:
             self._remove_signal(key)
 
+    def _highlight_id(self, hex_id: str):
+        root = self.sig_tree.invisibleRootItem()
+        for i in range(root.childCount()):
+            item = root.child(i)
+            if item.text(0) == hex_id:
+                self.sig_tree.scrollToItem(item)
+                self.sig_tree.setCurrentItem(item)
+                return
+
+    # ── Plot management ───────────────────────────────────────────────────────
+
     def _add_signal(self, key: str, kind: str, can_id: str, detail):
         if key in self._plot_items:
             return
@@ -174,17 +168,18 @@ class PlotTab(QWidget):
 
         color = SIGNAL_COLORS[self._color_idx % len(SIGNAL_COLORS)]
         self._color_idx += 1
-        pen = pg.mkPen(color=color, width=1.5)
+        pen = pg.mkPen(color=color, width=2)
 
         if kind == "byte" and detail:
             s = df[detail].dropna()
-            t = df.loc[s.index, "Timestamp"].values
-            y = s.values
-            label = f"{can_id}.{detail}"
+            if s.empty:
+                return
+            t = df.loc[s.index, "Timestamp"].values.astype(float)
+            y = s.values.astype(float)
+            label = f"{can_id} {detail}"
         elif kind == "dbc" and detail:
             from core.dbc_manager import decode_frame
-            vals = []
-            times = []
+            vals, times = [], []
             for _, row in df.iterrows():
                 byte_data = bytes(
                     int(row[f"B{i}"]) if pd.notna(row.get(f"B{i}")) else 0
@@ -197,22 +192,35 @@ class PlotTab(QWidget):
                     times.append(row["Timestamp"])
             if not vals:
                 return
-            t = np.array(times)
-            y = np.array(vals)
-            label = f"{can_id}.{detail.get('signal_name','?')}"
+            t = np.array(times, dtype=float)
+            y = np.array(vals, dtype=float)
+            label = f"{can_id} {detail.get('signal_name', '?')}"
         else:
             return
 
-        curve = self.plot_widget.plot(t, y, pen=pen, name=label)
-        self._plot_items[key] = curve
+        pi = pg.PlotItem()
+        pi.setLabel("left", label, color=color, size="7pt")
+        pi.getAxis("left").setTextPen(pg.mkPen(color=COLORS["dim"]))
+        pi.getAxis("left").setWidth(55)
+        pi.showGrid(x=True, y=True, alpha=0.2)
+        pi.hideAxis("bottom")
+        pi.setMenuEnabled(False)
+
+        curve = pi.plot(t, y, pen=pen)
+        pi.autoRange()
+
+        self._plot_items[key] = (pi, curve, color, label)
+        self._rebuild_layout()
 
     def _remove_signal(self, key: str):
         if key in self._plot_items:
-            self.plot_widget.removeItem(self._plot_items.pop(key))
+            del self._plot_items[key]
+            self._rebuild_layout()
 
     def _clear_plot(self):
-        for key in list(self._plot_items.keys()):
-            self._remove_signal(key)
+        self._plot_items.clear()
+        self.glw.clear()
+        self._color_idx = 0
         self.sig_tree.blockSignals(True)
         root = self.sig_tree.invisibleRootItem()
         for i in range(root.childCount()):
@@ -221,50 +229,37 @@ class PlotTab(QWidget):
             for j in range(p.childCount()):
                 p.child(j).setCheckState(0, Qt.CheckState.Unchecked)
         self.sig_tree.blockSignals(False)
-        self._color_idx = 0
 
-    def _highlight_id(self, hex_id: str):
-        root = self.sig_tree.invisibleRootItem()
-        for i in range(root.childCount()):
-            item = root.child(i)
-            if item.text(0) == hex_id:
-                self.sig_tree.scrollToItem(item)
-                self.sig_tree.setCurrentItem(item)
-                return
+    def _rebuild_layout(self):
+        self.glw.clear()
+        items = list(self._plot_items.items())
+        first_pi = None
+        for i, (key, (pi, curve, color, label)) in enumerate(items):
+            self.glw.addItem(pi, row=i, col=0)
+            if first_pi is None:
+                first_pi = pi
+                pi.showAxis("bottom")
+                pi.setLabel("bottom", "Time (s)", color=COLORS["dim"], size="7pt")
+                pi.getAxis("bottom").setTextPen(pg.mkPen(color=COLORS["dim"]))
+            else:
+                pi.hideAxis("bottom")
+                pi.setXLink(first_pi)
+            self.glw.ci.layout.setRowStretchFactor(i, 1)
 
-    def _on_mouse_moved(self, pos):
-        vb = self.plot_widget.getViewBox()
-        if self.plot_widget.sceneBoundingRect().contains(pos):
-            mp = vb.mapSceneToView(pos)
-            self._vline.setPos(mp.x())
-            self._hline.setPos(mp.y())
-            self.lbl_cursor.setText(f"x: {mp.x():.3f}s  y: {mp.y():.2f}")
-
-    def _screenshot(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Save Screenshot", "plot.png", "PNG (*.png)")
-        if path:
-            exporter = pg.exporters.ImageExporter(self.plot_widget.plotItem)
-            exporter.export(path)
-
-    # ── LIVE mode ─────────────────────────────────────────────────────────────
+    # ── Live update ───────────────────────────────────────────────────────────
 
     def _on_live_toggled(self, checked: bool):
         self._live_enabled = checked
         self.btn_live.setText("LIVE: ON" if checked else "LIVE: OFF")
 
     def _on_dbc_db_updated(self):
-        """Rebuild DBC signal children when DB cache is refreshed."""
         self._refresh_tree()
 
     def _live_update(self):
-        """
-        Called on every frames_updated. Refreshes all currently plotted items
-        using the cached dbc_db for speed. Only active in LIVE mode.
-        """
         if not self._live_enabled or not self._plot_items:
             return
         db = self._state.dbc_db
-        for key, curve in list(self._plot_items.items()):
+        for key, (pi, curve, color, label) in list(self._plot_items.items()):
             parts = key.split(":", 1)
             if len(parts) != 2:
                 continue
@@ -272,7 +267,6 @@ class PlotTab(QWidget):
             df = self._state.get_frames_for_id(can_id)
             if df.empty:
                 continue
-            # Keep only the last 500 frames for live display
             df = df.tail(500)
             if detail.startswith("B") and detail[1:].isdigit():
                 s = df[detail].dropna() if detail in df.columns else None
@@ -281,8 +275,8 @@ class PlotTab(QWidget):
                 t = df.loc[s.index, "Timestamp"].values.astype(float)
                 y = s.values.astype(float)
                 curve.setData(t, y)
+                pi.autoRange()
             elif db is not None:
-                # DBC decoded — use cached DB
                 t_vals, y_vals = [], []
                 msg_id_int = int(can_id, 16)
                 for _, row in df.iterrows():
@@ -296,14 +290,27 @@ class PlotTab(QWidget):
                         pass
                 if t_vals:
                     curve.setData(np.array(t_vals), np.array(y_vals))
+                    pi.autoRange()
+
+    # ── Mouse / export ────────────────────────────────────────────────────────
+
+    def _on_mouse_moved(self, pos):
+        pass  # cursor label update handled per-PlotItem if needed
+
+    def _screenshot(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Save Screenshot", "plot.png", "PNG (*.png)")
+        if path:
+            exporter = pg.exporters.ImageExporter(self.glw.scene())
+            exporter.export(path)
 
     def add_event_markers(self, events: list[dict]):
-        for evt in events:
-            ts = evt.get("timestamp", 0)
-            line = pg.InfiniteLine(
-                pos=ts, angle=90, movable=False,
-                pen=pg.mkPen(color=COLORS["amber"], width=1, style=Qt.PenStyle.DashLine),
-                label=evt.get("event", ""),
-                labelOpts={"color": COLORS["amber"], "position": 0.9},
-            )
-            self.plot_widget.addItem(line)
+        for pi, curve, color, label in self._plot_items.values():
+            for evt in events:
+                ts = evt.get("timestamp", 0)
+                line = pg.InfiniteLine(
+                    pos=ts, angle=90, movable=False,
+                    pen=pg.mkPen(color=COLORS["amber"], width=1, style=Qt.PenStyle.DashLine),
+                    label=evt.get("event", ""),
+                    labelOpts={"color": COLORS["amber"], "position": 0.9},
+                )
+                pi.addItem(line)
