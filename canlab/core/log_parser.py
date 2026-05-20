@@ -205,14 +205,4 @@ def _normalize_id(val) -> str:
 
 
 def _compute_delta(df: pd.DataFrame) -> pd.Series:
-    deltas = pd.Series(index=df.index, dtype=float)
-    last_ts = {}
-    for idx, row in df.iterrows():
-        cid = row["ID"]
-        ts = row["Timestamp"]
-        if cid in last_ts:
-            deltas[idx] = ts - last_ts[cid]
-        else:
-            deltas[idx] = 0.0
-        last_ts[cid] = ts
-    return deltas
+    return df.groupby("ID")["Timestamp"].diff().fillna(0.0)

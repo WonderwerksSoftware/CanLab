@@ -214,11 +214,11 @@ Configure in **Settings > API Keys**. Groq's free tier is sufficient for hundred
 Start via **Tools > Start REST API**. Default port 5000.
 
 ```bash
-GET  /api/frames            # all loaded frames
-GET  /api/frames/<id>       # frames for one CAN ID
-GET  /api/signals           # decoded signals
-POST /api/inject            # inject a frame  {"id":"0x200","data":[0,1,2,3,4,5,6,7]}
-GET  /api/dbc               # current DBC signal definitions
+GET  /frames            # last 200 loaded frames (append ?n=N to change limit)
+GET  /signals           # decoded DBC signals
+GET  /status            # connection state, frame count, repo URL, fingerprint
+GET  /memory            # AI memory entries
+POST /inject            # inject a raw CAN frame  {"id":"0x200","data":"01 02 03 04 05 06 07 08"}
 ```
 
 ---

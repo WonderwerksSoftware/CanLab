@@ -3,16 +3,23 @@
 
 import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all
 
 ROOT = Path("canlab")
+
+# Collect PIL (Pillow) including its native C extensions and bundled shared libs.
+# Simply listing PIL in hiddenimports is not enough — PyInstaller won't pick up
+# _imaging.so or the manylinux-bundled libtiff/libjpeg/etc. without collect_all.
+pil_datas, pil_binaries, pil_hiddenimports = collect_all("PIL")
 
 a = Analysis(
     [str(ROOT / "main.py")],
     pathex=["canlab"],
-    binaries=[],
+    binaries=pil_binaries,
     datas=[
         (str(ROOT / "canlab.png"),             "."           ),
         (str(ROOT / "sample_data"),            "sample_data" ),
+        *pil_datas,
     ],
     hiddenimports=[
         # PyQt6
@@ -33,8 +40,6 @@ a = Analysis(
         "sklearn.neighbors",
         "matplotlib", "matplotlib.backends.backend_qtagg",
         "matplotlib.backends.backend_agg",
-        # Image support (PIL/Pillow) — required by matplotlib
-        "PIL", "PIL.Image", "PIL.ImageDraw",
         # AI
         "groq", "anthropic",
         # stdlib extras
@@ -44,10 +49,13 @@ a = Analysis(
         "dpkt", "dpkt.pcap", "dpkt.pcapng",
         "keyring", "keyring.backends",
         "requests", "urllib3",
-        "flask", "flask_cors",
+        "fastapi", "fastapi.responses",
+        "uvicorn", "uvicorn.main", "uvicorn.config",
+        "starlette", "starlette.routing", "starlette.responses",
         "isotp",
         "pydantic", "pydantic.v1", "pydantic_core",
         "anthropic", "anthropic.types", "anthropic._models",
+        *pil_hiddenimports,
     ],
     excludes=[
         "tkinter",
@@ -63,7 +71,7 @@ a = Analysis(
         "tensorflow", "keras",
         "zmq", "tornado",
         "pygments", "jedi", "parso",
-        "fastapi", "uvicorn", "starlette",
+        "flask",
         "boto3", "botocore", "s3transfer",
         "google", "grpc",
         "sqlalchemy", "alembic",
